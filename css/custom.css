@@ -1,8 +1,20 @@
 body{
-  color: #072C2C;
-  background: #26AD97;
+  font-family: Roboto;
+  color: #211c0a;
+  background: #fadc6d;
 }
-a{ color: #006655;}
+a{ color: #68550d;}
+
+.button.button-primary{
+  color: #211c0a;
+  background-color: #f8c700;
+  border-color: #f8c700;
+}
+.button.button-primary:hover{
+  color: #211c0a;
+  background-color: #ffea92;
+  border-color: #f8c700;
+}
 
 p, li{
   font-size: 120%;
