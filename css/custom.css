@@ -6,12 +6,13 @@ body{
 a{ color: #68550d;}
 
 .button.button-primary{
-  color: #211c0a;
+  color: #161510;
   background-color: #f8c700;
   border-color: #f8c700;
+  font-size: 90%;
 }
 .button.button-primary:hover{
-  color: #211c0a;
+  color: #161510;
   background-color: #ffea92;
   border-color: #f8c700;
 }
