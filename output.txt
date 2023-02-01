@@ -1,3 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<domains>
 <domain>
 <url>http://0x.org</url>
 <title>
@@ -555,3 +557,4 @@ performances and exhibitions.">
 <meta name="description" content="">
 <meta name="description" content="Creative Technology">
 </domain>
+</domains>
