@@ -1,0 +1,7 @@
+button.recording {
+    background-color: red;
+    color: white;
+}
+#waveformCanvas {
+    border: 1px solid black;
+}
