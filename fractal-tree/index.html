@@ -1,282 +1,278 @@
-<html>
-  <head>
-    <link rel="stylesheet" href="nouislider/nouislider.min.css">
-    <link rel="stylesheet" href="css/style.css">
+<!-- TODO
 
-<!-- Todo
-* Refactor code
-* Line colour + Background: need better colour picker ui, including opacity
-* Display nodes but not branches
-* Add screenshot button (or upload to imgur button)
-* different input modes: e.g. text input, or imogen's gloves
-* Different numbers of branches at different depths, e.g. 1, 2, 3, 5, 8
-* Modify relationship between recursive depth and branch length
-* Add animation mode, e.g. for each param, set a range and a rate of change
-* add params to URL to make patterns shareable
-* add random generator
-* add genetic breeding
+- attrs in url for sharing
+- update state when loading presets
+- explain controls
+- DRY up bounds
+- add different easing curves
 
+
+rsync -avz --exclude 'node_modules' --exclude '.*' ~/projects/fractal-tree-node/ rdb@richdecibels.com:~/websites/richdecibels.com/fractal-tree/
  -->
 
+<html>
+  <head>
+    <style>
+      canvas{
+        background: rgb(154, 159, 165);
+        background: black;
+        width: 100%;
+        height: 100%;
+      }
+      body{
+        margin: 0;
+        padding: 0;
+        font-family: monospace;
+      }
+      #stateReader{
+        position: absolute;
+        bottom: 15px;
+        display: none;
+      }
+      #stateReader table{
+        border-spacing: 0
+      }
+      #stateReader tr{
+        color: white;
+      }
+      #head td, #yessssUI td, #pointsUI td{
+        border-bottom: 1px solid white;
+      }
+      #stateReader td{
+        padding: 1px 3px;
+      }
+      #stateReader .selected{
+        background: rgba(255,255,255,0.4);
+      }
+      .keys{
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 12px;
+      }
+      #slides-container{
+        position: absolute;
+        top: 100px;
+        width: 100%;
+      }
+      #slides, #tutorialState{
+        margin: auto;
+        max-width: 400px;
+        color: white;
+        font-size: 16px;
+      }
+      #tutorialState{
+        display: none;
+      }
+      .slide{
+        padding: 0.2em 1em;
+        background: rgba(255,255,255,0.4);
+      }
+      .hotkey{
+        color: lightblue;
+        font-weight: bold;
+      }
+      .state, #tutorialState{
+        background: rgba(255,255,255,0.6);
+        color: black;
+      }
+    </style>
   </head>
-
-<body id="body">
-  <script>
-    (function() {
-      var meta = document.createElement("meta");
-      meta.setAttribute('name','viewport');
-      var content = 'initial-scale=';
-      content += 2 / window.devicePixelRatio;
-      content += ',user-scalable=no';
-      meta.setAttribute('content', content);
-      document.getElementsByTagName('head')[0].appendChild(meta);
-    })();
-  </script>
-  <div id="input-mask"></div>
-
-  <div id='canvasContainer'>
-    <canvas id="canvas"></canvas>
-  </div>
-
-  <div id="controls">
-    <button id="keybindings">Keyboard shortcuts</button>
-    <button id="toggleControls">Hide controls</button>
-    <div id="controlsWrapper">
-
-      <div id="sliderControls">
-        <div class="sliderLabels">Repeats</div><div class="sliders" id="repeats"></div>
-        <div class="sliderLabels">Depth</div><div class="sliders" id="depth"></div>
-        <div class="sliderLabels">Angle</div><div class="sliders" id="offset"></div>
-        <div class="sliderLabels">Size</div><div class="sliders" id="size"></div>
-        <div class="sliderLabels">Skew</div><div class="sliders" id="skew"></div>
-        <div class="sliderLabels">Opacity</div><div class="sliders" id="opacity"></div>
-      </div>
-
-      <div id="colorControls">
-        <div id="lineColor">
-          Line
-          <div class="color-input" id="color-input-1"></div>
-          <div class="color-picker" id="color-picker-1">
-            <canvas class="color-block" id="color-block-1" height="150" width="150"></canvas>
-            <canvas class="color-strip" id="color-strip-1" height="150" width="30"></canvas>
-          </div>
+  <body>
+    <canvas id="canvas">
+    </canvas>
+    <div id="slides-container">
+      <div id="slides">
+        <div class="slide" id="slide-1">
+          <p>01 Welcome.</p>
+          <p>I made this toy to share an idea that I couldn't explain another way.</p>
+          <p>You'll need a keyboard to play. Press the down key to come in, or press "<span class="hotkey">&rarr;</span>" to skip ahead to free play mode.</p>
+          <p class="hotkey">&darr;</p>
         </div>
-        <div id="groundColor">
-          Ground
-          <div class="color-input" id="color-input-2"></div>
-          <div class="color-picker" id="color-picker-2">
-            <canvas class="color-block" id="color-block-2" height="150" width="150"></canvas>
-            <canvas class="color-strip" id="color-strip-2" height="150" width="30"></canvas>
-          </div>
+        <div class="slide" id="slide-2">
+          <p>02 Pause</p>
+          <p>This toy makes ethical graphs. It starts with a few values and elaborates them into a worldview.</p>
+          <p>Let me explain...</p>
+          <p class="hotkey">&darr;</p>
         </div>
+        <div class="slide" id="slide-3">
+          <p>03</p>
+          <p>I started with a line. <span class="state">{depth: 1}</span></p>
+          <p>Then I measured 30&deg; either side. <span class="state">{offset: 30}</span></p>
+          <p>I added two shorter lines branching off the first one. <span class="state">{depth: 2}</span></p>
+          <p class="hotkey">&darr;</p>
+        </div>
+        <div class="slide" id="slide-4">
+          <p>04</p>
+          <p>Repeating those instructions again adds new branches to each existing branch. <span class="state">{depth: 3}</span></p>
+          <p class="hotkey">&darr;</p>
+        </div>
+        <div class="slide" id="slide-5">
+          <p>05</p>
+          <p>Again,<br /> again,<br /> again!</p>
+          <p><span class="state">{depth: 6}</span></p>
+          <p class="hotkey">&darr;</p>
+        </div>
+        <div class="slide" id="slide-6">
+          <p>06</p>
+          <p>What if I start again with a 60&deg; spread instead of 30&deg;?</p>
+          <p><span class="state">{depth: 6, offset: 60}</span></p>
+          <p class="hotkey">&darr;</p>
+        </div>
+        <div class="slide" id="slide-7">
+          <p>07</p>
+          <p>Imagine this a diagram of your ethics. Instead of math-words like "depth" and "offset", supply your own ethics-words.</p>
+          <p>Maybe instead of <span class="state">{offset: 60}</span>, you rate yourself <span class="state">{conservative: 60}</span>.</p>
+          <p class="hotkey">&darr;</p>
+        </div>
+        <div class="slide" id="slide-8">
+          <p>08</p>
+          <p>Let's say this diagram is a simplified fingerprint of your unique ethical identity.</p>
+          <p>The labels are not important: individual/ collective, or spiritual/ secular, pragmatic/ idealistic, whatever words you use to describe your core values.</p>
+          <p><span class="state">{depth: 6, offset: 60}</span></p>
+          <p class="hotkey">&darr;</p>
+        </div>
+        <div class="slide" id="slide-9">
+          <p>09</p>
+          <p>People are too complex to model with 2 attributes. Let's add a few more.</p>
+          <p><span class="state">{depth: 6, offset: 60, repeat: 2}</span></p>
+          <p class="hotkey">&darr;</p>
+        </div>
+        <div class="slide" id="slide-10">
+          <p>10</p>
+          <p><span class="state">{depth: 6, offset: 60, repeat: 2, twist: 30 }</span></p>
+          <p class="hotkey">&darr;</p>
+        </div>
+        <div class="slide" id="slide-11">
+          <p>11</p>
+          <p><span class="state">{depth: 6, offset: 60, repeat: 2, twist: 30, size: 5 }</span></p>
+          <p class="hotkey">&darr;</p>
+        </div>
+        <div class="slide" id="slide-12">
+          <p>12</p>
+          <p><span class="state">{depth: 6, offset: 60, repeat: 2, twist: 30, size: 5, opacity: 75% }</span></p>
+          <p class="hotkey">&darr;</p>
+        </div>
+        <div class="slide" id="slide-13">
+          <p>13</p>
+          <p>Now with 6 attributes, this machine generates a huge amount of diversity.</p>
+          <p>Press any of the number keys to test a few samples. Try <span class="hotkey">4</span>, or <span class="hotkey">2</span>, <span class="hotkey">6</span>...<p>
+          <p class="hotkey">&darr;</p>
+        </div>
+        <div class="slide" id="slide-14">
+          <p>14</p>
+          <p>Maybe you experience life through a filter that looks a bit like <span class="hotkey">3</span>, but your dad's brain is more <span class="hotkey">4</span>-shaped. You have different settings on a couple of core values, and the result is a completely different understanding of how the world works.</p>
+          <p>
+          <p class="hotkey">&darr;</p>
+        </div>
+
+        <div class="slide" id="slide-15">
+          <p>15</p>
+          <p>It makes more sense when you play with it yourself. Press down <span class="hotkey">&darr;</span> to enter free play mode. Then down <span class="hotkey">&darr;</span> again to reach the next stage, or up <span class="hotkey">&uarr;</span> to return here.</p>
+          <p>
+          <p class="hotkey">&darr;</p>
+        </div>
+
+        <div class="slide" id="slide-16">
+          <p>16</p>
+          <p>Select an attribute with <span class="hotkey">Q</span> <span class="hotkey">W</span> <span class="hotkey">E</span> <span class="hotkey">R</span> <span class="hotkey">T</span> <span class="hotkey">Y</span>, or use <span class="hotkey">A</span>/<span class="hotkey">Z</span> to cycle through them.</p>
+          <p>Modify the value with <span class="hotkey">J</span>/<span class="hotkey">N</span></p>
+          <p class="hotkey">&darr;</p>
+        </div>
+
+        <div class="slide" id="slide-17">
+        </div>
+
+        <div class="slide" id="slide-18">
+          <p>17</p>
+          <p>Let's add some animation. Use <span class="hotkey">K</span>/<span class="hotkey">M</span> to alter the amplitude and <span class="hotkey">L</span>/<span class="hotkey">,</span> to modify frequency.</p>
+          <p>Change the overall speed with <span class="hotkey">U</span>.</p>
+          <p>Play or pause with <span class="hotkey">space</span>.</p>
+          <p>Show/hide the text interface with <span class="hotkey">I</span>.</p>
+          <p class="hotkey">&darr;</p>
+        </div>
+
+        <div class="slide" id="slide-19">
+        </div>
+
+        <div class="slide" id="slide-20">
+          <p>18</p>
+          <p>This project is free software, <a href="https://github.com/rdbartlett/fractal-tree-node">open for contributions</a>.</p>
+          <p>Discussion on <a href="https://viewer.scuttlebot.io/%25Za9m7WgN8muRCENsxX%2BuV%2BXPc0rxqnmjmPPDg3myorU%3D.sha256">#fractal-tree</a> on Scuttlebutt.</p>
+        </div>
+
+
       </div>
-      <div id="buttonControls">
-        <button id="presetBtnA">Preset A</button>
-        <button id="presetBtnB">Preset B</button>
-        <button id="presetBtnC">Preset C</button>
-        <button id="presetBtnD">Preset D</button>
-      </div>
+      <div id="tutorialState">{&nbsp;depth:&nbsp;<span id="tutorialYessssState">10</span>,
+         offset:&nbsp;<span id="tutorialWidthhState">60</span>,
+         repeat:&nbsp;<span id="tutorialRepeatState">6</span>,
+          twist:&nbsp;<span id="tutorialQuirkkState">-60</span>,
+           size:&nbsp;<span id="tutorialTensorState">10</span>,
+        opacity:&nbsp;<span id="tutorialEnergyState">0.75</span>&nbsp;}</div>
+
     </div>
-  </div>
-
-  <script src="nouislider/nouislider.min.js"></script>
-
-  <script src="js/color-picker.js"></script>
-  <script src="js/mousetrap.min.js"></script>
-
-
-  <script type="text/javascript">
-
-    //  INIT SLIDERS
-
-    var sliders = document.getElementsByClassName('sliders');
-    noUiSlider.create(sliders["repeats"], {
-      start: 6, tooltips: true, step: 1, range: { 'min': 1, 'max': 12 }
-    });
-    noUiSlider.create(sliders["depth"], {
-      start: 5, tooltips: true, step: 1, range: { 'min': 1, 'max': 20 }
-    });
-    noUiSlider.create(sliders["offset"], {
-      start: 25, tooltips: true, step: 1, range: { 'min': 0, 'max': 180 }
-    });
-    noUiSlider.create(sliders["size"], {
-      start: 12, tooltips: true, step: 1, range: { 'min': 0, 'max': 25 }
-    });
-    noUiSlider.create(sliders["skew"], {
-      start: 0, tooltips: true, step: 1, range: { 'min': [-90], 'max': [90] }
-    });
-    noUiSlider.create(sliders["opacity"], {
-      start: 1, tooltips: true, step: 0.025, range: { 'min': 0, 'max': 1 }
-    });
-
-    for ( var i = 0; i < sliders.length; i++ ) {
-      sliders[i].noUiSlider.on('slide', drawTreeFromSliders);
-    }
-
-    // INIT KEYBINDINGS
-
-    Mousetrap.bind('q', function() { incSlider(0); });
-    Mousetrap.bind('w', function() { incSlider(1); });
-    Mousetrap.bind('e', function() { incSlider(2); });
-    Mousetrap.bind('r', function() { incSlider(3); });
-    Mousetrap.bind('t', function() { incSlider(4); });
-    Mousetrap.bind('y', function() { incSlider(5); });
-    Mousetrap.bind('a', function() { decSlider(0); });
-    Mousetrap.bind('s', function() { decSlider(1); });
-    Mousetrap.bind('d', function() { decSlider(2); });
-    Mousetrap.bind('f', function() { decSlider(3); });
-    Mousetrap.bind('g', function() { decSlider(4); });
-    Mousetrap.bind('h', function() { decSlider(5); });
-
-    Mousetrap.bind('1', function() { loadPreset(0); });
-    Mousetrap.bind('2', function() { loadPreset(1); });
-    Mousetrap.bind('3', function() { loadPreset(2); });
-    Mousetrap.bind('4', function() { loadPreset(3); });
-
-    function incSlider(index){
-      console.log('inc. index:' + index)
-      sliders[index].noUiSlider.set(Number(sliders[index].noUiSlider.get()) + sliders[index].noUiSlider.options.step);
-      drawTreeFromSliders()
-    }
-
-    function decSlider(index){
-      console.log('dec. index:' + index)
-      sliders[index].noUiSlider.set(Number(sliders[index].noUiSlider.get()) - sliders[index].noUiSlider.options.step);
-      drawTreeFromSliders()
-    }
-
-    var preset = [
-      {repeats: 1, depth: 10, offset: 14, size: 6, skew: 7, opacity: 1}
-    , {repeats: 2, depth: 9, offset: 44, size: 6, skew: -26, opacity: 1}
-    , {repeats: 6, depth: 14, offset: 60, size: 20, skew: 0, opacity: 0.13}
-    , {repeats: 5, depth: 9, offset: 180, size: 20, skew: -60, opacity: 0.25}
-    ];
-
-    document.getElementById('keybindings').addEventListener('click', function(){
-      alert("Keybindings:\nPress 1-4 keys for presets.\nMove slider 1 with Q+A, slider 2 with W+A, etc.");
-    });
-
-
-
-    function loadPreset(index){
-      sliders["repeats"].noUiSlider.set(preset[index].repeats);
-      sliders["depth"].noUiSlider.set(preset[index].depth);
-      sliders["offset"].noUiSlider.set(preset[index].offset);
-      sliders["size"].noUiSlider.set(preset[index].size);
-      sliders["skew"].noUiSlider.set(preset[index].skew);
-      sliders["opacity"].noUiSlider.set(preset[index].opacity);
-
-      drawTreeFromSliders()
-    }
-
-    var toggle = true;
-
-    document.getElementById('toggleControls').addEventListener('click', function(){
-      if(toggle){
-        document.getElementById('controlsWrapper').style.setProperty('display', 'none');
-        document.getElementById('toggleControls').innerHTML = "Show";
-        toggle = false;
-      }
-      else{
-        document.getElementById('controlsWrapper').style.setProperty('display', 'block');
-        document.getElementById('toggleControls').innerHTML = "Hide";
-        toggle = true;
-      }
-    });
-
-    document.getElementById('presetBtnA').addEventListener('click', function(){
-      loadPreset(0)
-    });
-
-    document.getElementById('presetBtnB').addEventListener('click', function(){
-      loadPreset(1)
-    });
-
-    document.getElementById('presetBtnC').addEventListener('click', function(){
-      loadPreset(2)
-    });
-
-    document.getElementById('presetBtnD').addEventListener('click', function(){
-      loadPreset(4)
-    });
-
-    function drawTreeFromSliders(){
-      repeats = Number(sliders["repeats"].noUiSlider.get());
-      depth = sliders["depth"].noUiSlider.get();
-      offset = Number(sliders["offset"].noUiSlider.get());
-      size = sliders["size"].noUiSlider.get();
-      height = width = size;
-      skew = Number(sliders["skew"].noUiSlider.get());
-      context.globalAlpha = Number(sliders["opacity"].noUiSlider.get());
-      context.strokeStyle = rgbaColor;
-      drawNewTree(rootX, rootY, -90, depth);
-    }
-
-  </script>
-
-  <script type="text/javascript">
-
-    var repeats = 6;
-    var depth = 5;
-    var offset = 25;
-    var height = 12;
-    var width = 12;
-    var skew = 0;
-    var alpha = 1;
-
-    var canvas = document.getElementById('canvas');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    // if(window.innerWidth < 500){ canvas.height = window.innerHeight - 200; }
-
-    var context = canvas.getContext('2d');
-
-    // context.fillStyle = 'rgb(255,25,255)';
-    context.strokeStyle = 'rgba(255,255,255,1)';
-    context.globalAlpha = alpha;
-    context.lineWidth = 1;
-
-    var deg_to_rad = Math.PI / 180.0;
-    var rootX = canvas.width / 2;
-    var rootY = canvas.height / 2;
-
-    function drawLine(x1, y1, x2, y2, brightness){
-      context.moveTo(x1, y1);
-      context.lineTo(x2, y2);
-    }
-
-    function drawReflectedTrees(x1, y1, angle, depth){
-      while (repeats - treeIteration !== 0) {
-        // console.log("repeats: " + repeats + " treeIteration:" + treeIteration)
-        drawTree(x1, y1, angle, depth);
-        treeIteration++;
-      }
-    }
-
-    function drawTree(x1, y1, angle, depth){
-      var mirrorAngle = treeIteration/repeats * (2 * Math.PI)
-      if (depth !== 0){
-        var x2 = x1 + (Math.cos(angle * deg_to_rad + mirrorAngle) * depth * width);
-        var y2 = y1 + (Math.sin(angle * deg_to_rad + mirrorAngle) * depth * height);
-        drawLine(x1, y1, x2, y2, depth);
-        drawTree(x2, y2, (angle + offset + skew), depth - 1);
-        drawTree(x2, y2, (angle - offset), depth - 1);
-      }
-    }
-
-
-    function drawNewTree(x1, y1, angle, depth){
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      context.beginPath();
-      treeIteration = 0;
-      drawReflectedTrees(x1, y1, angle, depth);
-      context.closePath();
-      context.stroke();
-    }
-
-    drawNewTree(rootX, rootY, -90, depth);
-
-  </script>
-
+    <div id="stateReader">
+      <table>
+        <tr id="head">
+          <td>______ <span class="keys">[A Z]</span></td>
+          <td>state <span class="keys">[J N]</span></td>
+          <td class="phase2">swing <span class="keys">[K M]</span></td>
+          <td class="phase2">freq  <span class="keys">[L ,]</span></td>
+        </tr>
+        <tr id="quirkkUI" class="selected">
+          <td>quirkk <span class="keys">[Q]</span></td>
+          <td><span id="quirkkState">0</span></td>
+          <td class="phase2"><span id="quirkkAmplitude">0</span></td>
+          <td class="phase2"><span id="quirkkPeriod">0</span></td>
+        </tr>
+        <tr id="widthhUI">
+          <td>widthh <span class="keys">[W]</span></td>
+          <td><span id="widthhState">0</span></td>
+          <td class="phase2"><span id="widthhAmplitude">0</span></td>
+          <td class="phase2"><span id="widthhPeriod">0</span></td>
+        </tr>
+        <tr id="energyUI">
+          <td>energy <span class="keys">[E]</span></td>
+          <td><span id="energyState">0</span></td>
+          <td class="phase2"><span id="energyAmplitude">0</span></td>
+          <td class="phase2"><span id="energyPeriod">0</span></td>
+        </tr>
+        <tr id="repeatUI">
+          <td>repeat <span class="keys">[R]</span></td>
+          <td><span id="repeatState">0</span></td>
+          <td class="phase2"><span id="repeatAmplitude">0</span></td>
+          <td class="phase2"><span id="repeatPeriod">0</span></td>
+        </tr>
+        <tr id="tensorUI">
+          <td>tensor <span class="keys">[T]</span></td>
+          <td><span id="tensorState">0</span></td>
+          <td class="phase2"><span id="tensorAmplitude">0</span></td>
+          <td class="phase2"><span id="tensorPeriod">0</span></td>
+        </tr>
+        <tr id="yessssUI">
+          <td>yessss <span class="keys">[Y]</span></td>
+          <td><span id="yessssState">0</span></td>
+          <td class="phase2"><span id="yessssAmplitude">0</span></td>
+          <td class="phase2"><span id="yessssPeriod">0</span></td>
+        </tr>
+        <tr id="huuuueUI">
+          <td class="phase2">huuuue <span class="keys">[H]</span></td>
+          <td class="phase2"><span id="huuuueRed">255</span>R</td>
+          <td class="phase2"><span id="huuuueGreen">0</span>G</td>
+          <td class="phase2"><span id="huuuueBlue">150</span>B</td>
+        </tr>
+        <tr id="urgncyUI">
+          <td class="phase2">urgncy <span class="keys">[U]</span></td>
+          <td class="phase2" colspan=3><span id="urgncyState">0</span></td>
+        </tr>
+        <tr class="phase2">
+          <td colspan>orbitt <span class="keys">[O]</span></td>
+          <td ><span id="orbittState">0</span></td>
+        </tr>
+        <tr class="phase2" id="pointsUI">
+          <td colspan>points <span class="keys">[P]</span></td>
+          <td colspan=3><span id="pointsState">0</span></td>
+        </tr>
+      </table>
+    </div>
+    <script src='./build.js'></script>
   </body>
 </html>
