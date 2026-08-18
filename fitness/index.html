@@ -1711,12 +1711,14 @@
       loadDocument(link.dataset.doc, true);
     });
 
+    const defaultDoc = workoutApiBase ? "workout-guide.md" : "README.md";
+
     window.addEventListener("popstate", () => {
       const params = new URLSearchParams(location.search);
-      loadDocument(params.get("doc") || "README.md");
+      loadDocument(params.get("doc") || defaultDoc);
     });
 
-    const initial = new URLSearchParams(location.search).get("doc") || "README.md";
+    const initial = new URLSearchParams(location.search).get("doc") || defaultDoc;
     loadDocument(initial);
   </script>
 </body>
