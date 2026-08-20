@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="workout-api-base" content="https://richdecibels-fitness-api.voice-agent-inbox-cloudflare.workers.dev">
   <meta name="description" content="A browsable research archive for the Convicted Condition YouTube channel and the Convict Conditioning system.">
+  <meta name="workout-api-base" content="https://richdecibels-fitness-api.voice-agent-inbox-cloudflare.workers.dev">
+  <meta name="clerk-publishable-key" content="pk_live_Y2xlcmsucmljaGRlY2liZWxzLmNvbSQ">
   <title>Convicted Condition — research archive</title>
   <style>
     :root {
@@ -469,6 +470,28 @@
     }
     .workout-console-date { color: var(--muted); font-size: 0.75rem; white-space: nowrap; }
     .workout-console-actions { display: flex; align-items: center; gap: 7px; }
+    .workout-auth-button {
+      min-height: 32px;
+      padding: 6px 10px;
+      border: 0;
+      border-radius: 7px;
+      color: #ffffff;
+      background: #2563eb;
+      font: 750 0.74rem/1.1 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      cursor: pointer;
+    }
+    .workout-auth-button:hover { background: #1d4ed8; }
+    .workout-user-button { min-width: 28px; min-height: 28px; display: grid; place-items: center; }
+    .workout-auth-note {
+      margin: 10px 0 0 !important;
+      padding: 10px 12px;
+      border-radius: 9px;
+      color: #475467;
+      background: #f8fafc;
+      font-size: 0.78rem;
+    }
+    body.workout-auth-signed-out .workout-console-log,
+    body.workout-auth-signed-out .workout-log { display: none !important; }
     .workout-console-actions .explainer-toggle,
     .workout-console-actions .workout-history-toggle,
     .workout-more summary {
@@ -971,36 +994,69 @@
     }
 
     const workoutApiBase = (document.querySelector('meta[name="workout-api-base"]')?.content || "").replace(/\/$/, "");
+    const clerkPublishableKey = document.querySelector('meta[name="clerk-publishable-key"]')?.content || "";
     const workoutEditKeyName = "richdecibels-fitness-edit-key";
 
+    let workoutClerkReady;
+    async function setupWorkoutClerk() {
+      if (!clerkPublishableKey) return null;
+      if (workoutClerkReady) return workoutClerkReady;
+      workoutClerkReady = (async () => {
+        const clerkDomain = atob(clerkPublishableKey.split("_")[2]).slice(0, -1);
+        const loadScript = (src, attributes = {}) => new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = src;
+          script.defer = true;
+          script.crossOrigin = "anonymous";
+          for (const [key, value] of Object.entries(attributes)) script.setAttribute(key, value);
+          script.addEventListener("load", resolve, { once: true });
+          script.addEventListener("error", () => reject(new Error("Sign-in could not be loaded.")), { once: true });
+          document.head.append(script);
+        });
+        await loadScript(`https://${clerkDomain}/npm/@clerk/ui@1/dist/ui.browser.js`);
+        await loadScript(`https://${clerkDomain}/npm/@clerk/clerk-js@6/dist/clerk.browser.js`, { "data-clerk-publishable-key": clerkPublishableKey });
+        await window.Clerk.load({ ui: { ClerkUI: window.__internal_ClerkUICtor } });
+        return window.Clerk;
+      })();
+      return workoutClerkReady;
+    }
+
     async function workoutApiRequest(path, options = {}) {
-      const method = (options.method || "GET").toUpperCase();
-      const needsEditKey = Boolean(workoutApiBase) && !["GET", "HEAD"].includes(method);
-      let editKey = needsEditKey ? localStorage.getItem(workoutEditKeyName) : "";
-      if (needsEditKey && !editKey) {
-        editKey = window.prompt("Enter the edit password to change workout records:")?.trim() || "";
-        if (!editKey) throw new Error("Edit password required.");
-      }
-      const send = key => fetch(`${workoutApiBase}${path}`, {
+      const clerk = await setupWorkoutClerk();
+      const token = clerk ? await clerk.session?.getToken() : "";
+      if (clerkPublishableKey && !token) throw new Error("Sign in to access workout records.");
+      const response = await fetch(`${workoutApiBase}${path}`, {
         ...options,
         headers: {
           "Content-Type": "application/json",
-          ...(key ? { Authorization: `Bearer ${key}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(options.headers || {})
         }
       });
-      let response = await send(editKey);
-      if (needsEditKey && response.status === 401) {
-        localStorage.removeItem(workoutEditKeyName);
-        const retryKey = window.prompt("That edit password did not work. Try again:")?.trim() || "";
-        if (!retryKey) throw new Error("Edit password required.");
-        editKey = retryKey;
-        response = await send(editKey);
-      }
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || `Workout service returned ${response.status}.`);
-      if (needsEditKey && editKey) localStorage.setItem(workoutEditKeyName, editKey);
       return payload;
+    }
+
+    async function claimLegacyWorkoutRecords() {
+      if (!clerkPublishableKey || !window.Clerk?.isSignedIn) return;
+      const account = await workoutApiRequest("/api/me");
+      if (!account.legacyRecordsAvailable) return;
+      let editKey = localStorage.getItem(workoutEditKeyName) || "";
+      if (!editKey) {
+        editKey = window.prompt("Enter the previous workout edit password to attach your existing records to this account:")?.trim() || "";
+      }
+      if (!editKey) return;
+      try {
+        await workoutApiRequest("/api/claim", {
+          method: "POST",
+          headers: { "X-Legacy-Token": editKey },
+        });
+        localStorage.removeItem(workoutEditKeyName);
+      } catch (error) {
+        localStorage.removeItem(workoutEditKeyName);
+        throw error;
+      }
     }
 
     const progressionFamilies = [
@@ -1277,6 +1333,46 @@
       documentEl.addEventListener("workout-exercise-selected", event => updateSelection(event.detail.exercise));
       const selectedButton = progression.rows.map(row => row._exerciseButton).find(button => button.getAttribute("aria-pressed") === "true") || progression.rows[0]._exerciseButton;
       updateSelection(selectedButton.dataset.exercise);
+    }
+
+    async function setupWorkoutAuthControls() {
+      if (!clerkPublishableKey) return;
+      const workoutConsole = documentEl.querySelector(".workout-console");
+      const actions = workoutConsole?.querySelector(".workout-console-actions");
+      const consoleMain = workoutConsole?.querySelector(".workout-console-main");
+      if (!actions || !consoleMain) return;
+      try {
+        const clerk = await setupWorkoutClerk();
+        const signedIn = Boolean(clerk?.isSignedIn);
+        document.body.classList.toggle("workout-auth-signed-out", !signedIn);
+        if (signedIn) {
+          const userButton = document.createElement("div");
+          userButton.className = "workout-user-button";
+          userButton.setAttribute("aria-label", "Workout account");
+          actions.prepend(userButton);
+          clerk.mountUserButton(userButton);
+        } else {
+          const signIn = document.createElement("button");
+          signIn.type = "button";
+          signIn.className = "workout-auth-button";
+          signIn.textContent = "Sign in";
+          signIn.addEventListener("click", () => clerk.openSignIn());
+          actions.prepend(signIn);
+          const note = document.createElement("p");
+          note.className = "workout-auth-note";
+          note.textContent = "Sign in with Google to track workouts and see your progress.";
+          consoleMain.append(note);
+        }
+        clerk.addListener(resources => {
+          if (Boolean(resources?.user) !== signedIn) window.location.reload();
+        });
+      } catch {
+        document.body.classList.add("workout-auth-signed-out");
+        const note = document.createElement("p");
+        note.className = "workout-auth-note";
+        note.textContent = "Sign-in is temporarily unavailable. The workout guide and videos still work.";
+        consoleMain.append(note);
+      }
     }
 
     function setupWorkoutLog(progression) {
@@ -1661,6 +1757,8 @@
     async function setupWorkoutGuide() {
       let preferences = { stages: {}, explainersVisible: true };
       try {
+        await setupWorkoutClerk();
+        await claimLegacyWorkoutRecords();
         const payload = await workoutApiRequest("/api/preferences");
         if (payload.preferences) preferences = payload.preferences;
       } catch {
@@ -1672,6 +1770,7 @@
       setupWorkoutLog(progression);
       setupWorkoutPlayer();
       setupWorkoutFocusLayout(progression);
+      await setupWorkoutAuthControls();
     }
 
     async function loadDocument(doc, pushState = false) {
