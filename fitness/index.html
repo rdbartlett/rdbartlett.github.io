@@ -490,6 +490,12 @@
       background: #f8fafc;
       font-size: 0.78rem;
     }
+    .workout-auth-note a {
+      color: #2563eb;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .workout-auth-note a:hover { text-decoration: underline; }
     body.workout-auth-signed-out .workout-console-log,
     body.workout-auth-signed-out .workout-log { display: none !important; }
     .workout-console-actions .explainer-toggle,
@@ -996,6 +1002,13 @@
     const workoutApiBase = (document.querySelector('meta[name="workout-api-base"]')?.content || "").replace(/\/$/, "");
     const clerkPublishableKey = document.querySelector('meta[name="clerk-publishable-key"]')?.content || "";
     const workoutEditKeyName = "richdecibels-fitness-edit-key";
+    const workoutGuideUrl = new URL("/fitness/", window.location.origin).href;
+    const workoutSignInRedirects = {
+      signInForceRedirectUrl: workoutGuideUrl,
+      signUpForceRedirectUrl: workoutGuideUrl,
+      signInFallbackRedirectUrl: workoutGuideUrl,
+      signUpFallbackRedirectUrl: workoutGuideUrl,
+    };
 
     let workoutClerkReady;
     async function setupWorkoutClerk() {
@@ -1015,7 +1028,10 @@
         });
         await loadScript(`https://${clerkDomain}/npm/@clerk/ui@1/dist/ui.browser.js`);
         await loadScript(`https://${clerkDomain}/npm/@clerk/clerk-js@6/dist/clerk.browser.js`, { "data-clerk-publishable-key": clerkPublishableKey });
-        await window.Clerk.load({ ui: { ClerkUI: window.__internal_ClerkUICtor } });
+        await window.Clerk.load({
+          ui: { ClerkUI: window.__internal_ClerkUICtor },
+          ...workoutSignInRedirects,
+        });
         return window.Clerk;
       })();
       return workoutClerkReady;
@@ -1360,7 +1376,17 @@
           actions.prepend(signIn);
           const note = document.createElement("p");
           note.className = "workout-auth-note";
-          note.textContent = "Sign in with Google to track workouts and see your progress.";
+          const noteLink = document.createElement("a");
+          noteLink.href = clerk.buildSignInUrl({
+            redirectUrl: workoutGuideUrl,
+            ...workoutSignInRedirects,
+          });
+          noteLink.textContent = "Sign in with Google to track workouts and see your progress.";
+          noteLink.addEventListener("click", event => {
+            event.preventDefault();
+            clerk.openSignIn();
+          });
+          note.append(noteLink);
           consoleMain.append(note);
         }
         clerk.addListener(resources => {
