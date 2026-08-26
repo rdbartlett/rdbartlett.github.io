@@ -37,9 +37,9 @@ img{
 .homepage-portrait{
   display: block;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 7 / 6;
   object-fit: cover;
-  object-position: center 25%;
+  object-position: center 30%;
 }
 
 .booking-options li{
