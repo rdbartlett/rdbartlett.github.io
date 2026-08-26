@@ -34,6 +34,18 @@ img{
   border-radius: 15px;
 }
 
+.homepage-portrait{
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center 25%;
+}
+
+.booking-options li{
+  margin-bottom: 1rem;
+}
+
 .video-wrapper {
   position: relative;
   padding-bottom: 56.25%; /* 16:9 */
