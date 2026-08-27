@@ -9,6 +9,7 @@
   const overviewClose = document.querySelector('[aria-label="Close overview"]');
   const total = slides.length;
   let touchStart = null;
+  let previousFocus = null;
 
   const requested = Number.parseInt(window.location.hash.slice(1), 10);
   let current = Number.isInteger(requested) && requested >= 1 && requested <= total ? requested - 1 : 0;
@@ -28,7 +29,11 @@
     nextButtons.forEach((button) => { button.disabled = current === total - 1; });
     if (slideCount) slideCount.innerHTML = `${String(current + 1).padStart(2, "0")} <span>/ ${String(total).padStart(2, "0")}</span>`;
     if (progress) progress.style.transform = `scaleX(${(current + 1) / total})`;
-    overviewButtons.forEach((button, index) => button.classList.toggle("is-current", index === current));
+    overviewButtons.forEach((button, index) => {
+      button.classList.toggle("is-current", index === current);
+      if (index === current) button.setAttribute("aria-current", "step");
+      else button.removeAttribute("aria-current");
+    });
     if (hash) updateHash();
   }
 
@@ -40,7 +45,13 @@
   function setOverview(open) {
     if (!overview) return;
     overview.hidden = !open;
-    if (open) overviewClose?.focus();
+    if (open) {
+      previousFocus = document.activeElement;
+      overviewClose?.focus();
+    } else if (previousFocus instanceof HTMLElement) {
+      previousFocus.focus();
+      previousFocus = null;
+    }
   }
 
   previousButtons.forEach((button) => button.addEventListener("click", () => goTo(current - 1)));
@@ -62,13 +73,38 @@
       setOverview(false);
       return;
     }
-    if (["ArrowRight", "ArrowDown", "PageDown", " "].includes(event.key)) {
+    if (!overview?.hidden) return;
+
+    const target = event.target instanceof Element ? event.target : null;
+    const isInteractive = Boolean(target?.closest("button, a, input, textarea, select, [contenteditable='true']"));
+    const activeFrame = document.querySelector(".slide.is-active .slide-frame");
+
+    const scrollWithinSlide = (direction, amount) => {
+      if (!activeFrame) return false;
+      const maxScroll = activeFrame.scrollHeight - activeFrame.clientHeight;
+      const canScroll = direction > 0 ? activeFrame.scrollTop < maxScroll - 2 : activeFrame.scrollTop > 2;
+      if (!canScroll) return false;
+      activeFrame.scrollBy({ top: direction * amount, behavior: "smooth" });
+      return true;
+    };
+
+    if (event.key === "ArrowRight") {
       event.preventDefault();
       goTo(current + 1);
     }
-    if (["ArrowLeft", "ArrowUp", "PageUp"].includes(event.key)) {
+    if (event.key === "ArrowLeft") {
       event.preventDefault();
       goTo(current - 1);
+    }
+    if (["ArrowDown", "PageDown"].includes(event.key) || (event.key === " " && !isInteractive)) {
+      event.preventDefault();
+      const amount = event.key === "ArrowDown" ? 90 : (activeFrame?.clientHeight ?? window.innerHeight) * .82;
+      if (!scrollWithinSlide(1, amount)) goTo(current + 1);
+    }
+    if (["ArrowUp", "PageUp"].includes(event.key)) {
+      event.preventDefault();
+      const amount = event.key === "ArrowUp" ? 90 : (activeFrame?.clientHeight ?? window.innerHeight) * .82;
+      if (!scrollWithinSlide(-1, amount)) goTo(current - 1);
     }
     if (event.key === "Home") goTo(0);
     if (event.key === "End") goTo(total - 1);
@@ -84,13 +120,28 @@
   });
 
   document.querySelector(".deck")?.addEventListener("touchstart", (event) => {
-    touchStart = event.changedTouches[0]?.clientX ?? null;
+    const target = event.target instanceof Element ? event.target : null;
+    const touch = event.changedTouches[0];
+    if (!overview?.hidden || target?.closest(".deck-controls, .overview") || !touch) {
+      touchStart = null;
+      return;
+    }
+    touchStart = { x: touch.clientX, y: touch.clientY };
   }, { passive: true });
 
   document.querySelector(".deck")?.addEventListener("touchend", (event) => {
     if (touchStart === null) return;
-    const delta = event.changedTouches[0].clientX - touchStart;
-    if (Math.abs(delta) > 50) goTo(delta < 0 ? current + 1 : current - 1);
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    const deltaX = touch.clientX - touchStart.x;
+    const deltaY = touch.clientY - touchStart.y;
+    if (Math.abs(deltaX) > 60 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
+      goTo(deltaX < 0 ? current + 1 : current - 1);
+    }
+    touchStart = null;
+  }, { passive: true });
+
+  document.querySelector(".deck")?.addEventListener("touchcancel", () => {
     touchStart = null;
   }, { passive: true });
 
