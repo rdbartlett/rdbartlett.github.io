@@ -1011,10 +1011,18 @@
     };
 
     let workoutClerkReady;
+    function withTimeout(promise, milliseconds, message) {
+      let timeoutId;
+      const timeout = new Promise((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(message)), milliseconds);
+      });
+      return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
+    }
+
     async function setupWorkoutClerk() {
       if (!clerkPublishableKey) return null;
       if (workoutClerkReady) return workoutClerkReady;
-      workoutClerkReady = (async () => {
+      const initializeClerk = (async () => {
         const clerkDomain = atob(clerkPublishableKey.split("_")[2]).slice(0, -1);
         const loadScript = (src, attributes = {}) => new Promise((resolve, reject) => {
           const script = document.createElement("script");
@@ -1034,6 +1042,7 @@
         });
         return window.Clerk;
       })();
+      workoutClerkReady = withTimeout(initializeClerk, 10_000, "Sign-in took too long to load.");
       return workoutClerkReady;
     }
 
@@ -1181,6 +1190,20 @@
         families,
         rows,
         stageStatus,
+        applyStages(stages = {}) {
+          rows.forEach((row, index) => {
+            const family = families[index];
+            const stage = Number(stages[family.key]);
+            if (!family.stages.some(candidate => candidate.stage === stage)) return;
+            const previousStage = current.get(family.key)?.stage;
+            if (previousStage === stage) return;
+            row._stageSelect.value = String(stage);
+            const changed = applyStage(row, family, stage);
+            documentEl.dispatchEvent(new CustomEvent("workout-stage-changed", {
+              detail: { family: family.key, stage, oldExercise: changed.oldExercise, exercise: changed.stageData.exercise, button: changed.button }
+            }));
+          });
+        },
         currentExercises: () => families.map(family => current.get(family.key).exercise),
         allExerciseNames: families.flatMap(family => family.stages.map(stage => stage.exercise))
       };
@@ -1781,22 +1804,25 @@
     }
 
     async function setupWorkoutGuide() {
-      let preferences = { stages: {}, explainersVisible: true };
-      try {
-        await setupWorkoutClerk();
-        await claimLegacyWorkoutRecords();
-        const payload = await workoutApiRequest("/api/preferences");
-        if (payload.preferences) preferences = payload.preferences;
-      } catch {
-        // The guide still works with Stage 1 defaults when the local service is unavailable.
-      }
+      const preferences = { stages: {}, explainersVisible: true };
       const progression = setupProgressionTable(preferences);
       if (!progression) return;
       setupExplainerToggle(preferences);
       setupWorkoutLog(progression);
       setupWorkoutPlayer();
       setupWorkoutFocusLayout(progression);
-      await setupWorkoutAuthControls();
+      if (clerkPublishableKey) document.body.classList.add("workout-auth-signed-out");
+      void setupWorkoutAuthControls();
+      void (async () => {
+        try {
+          await setupWorkoutClerk();
+          await claimLegacyWorkoutRecords();
+          const payload = await workoutApiRequest("/api/preferences");
+          if (payload.preferences?.stages) progression.applyStages(payload.preferences.stages);
+        } catch {
+          // The guide and videos remain available with Stage 1 defaults.
+        }
+      })();
     }
 
     async function loadDocument(doc, pushState = false) {
